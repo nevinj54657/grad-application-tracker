@@ -1,0 +1,156 @@
+// Prisma schema for Application Tracker
+// Run `npm run prisma:migrate` inside /server after editing this file.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  INTERNSHIP
+  PLACEMENT
+  GRADUATE
+  CONTRACT
+  TEMPORARY
+  OTHER
+}
+
+enum ApplicationStatus {
+  SAVED
+  APPLIED
+  ONLINE_ASSESSMENT
+  INTERVIEW
+  OFFER
+  REJECTED
+  WITHDRAWN
+}
+
+enum InterviewType {
+  HR
+  TECHNICAL
+  CODING
+  ASSESSMENT_CENTRE
+  FINAL
+  OTHER
+}
+
+enum InterviewOutcome {
+  PENDING
+  PASSED
+  FAILED
+  CANCELLED
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  savedJobs    SavedJob[]
+  applications Application[]
+  tags         Tag[]
+}
+
+model SavedJob {
+  id             Int             @id @default(autoincrement())
+  userId         Int
+  company        String
+  jobTitle       String
+  location       String?
+  employmentType EmploymentType?
+  salary         String?
+  jobUrl         String?
+  deadline       DateTime?
+  notes          String?         @db.Text
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Application {
+  id             Int               @id @default(autoincrement())
+  userId         Int
+  company        String
+  jobTitle       String
+  location       String?
+  employmentType EmploymentType?
+  salary         String?
+  jobUrl         String?
+  deadline       DateTime?
+  dateApplied    DateTime?
+  status         ApplicationStatus @default(SAVED)
+  notes          String?           @db.Text
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  user    User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  history ApplicationHistory[]
+  interviews Interview[]
+  tags    ApplicationTag[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model ApplicationHistory {
+  id            Int               @id @default(autoincrement())
+  applicationId Int
+  status        ApplicationStatus
+  changedAt     DateTime          @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+}
+
+model Interview {
+  id            Int              @id @default(autoincrement())
+  applicationId Int
+  type          InterviewType
+  scheduledAt   DateTime
+  location      String?
+  meetingUrl    String?
+  notes         String?          @db.Text
+  outcome       InterviewOutcome @default(PENDING)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+}
+
+model Tag {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  name      String
+  createdAt DateTime @default(now())
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications ApplicationTag[]
+
+  @@unique([userId, name])
+}
+
+model ApplicationTag {
+  applicationId Int
+  tagId         Int
+  assignedAt    DateTime @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  tag         Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([applicationId, tagId])
+}
